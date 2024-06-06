@@ -1,3 +1,5 @@
+#IMPORT DATA
+
 import os
 import shutil
 import random
@@ -12,7 +14,6 @@ from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 from PIL import Image, ImageEnhance, ImageOps
 
-# Download and extract dataset
 url = 'https://github.com/eursamajor/Hairapy/raw/main/Dataset.zip'
 local_path = './Dataset.zip'
 urllib.request.urlretrieve(url, local_path)
@@ -25,12 +26,10 @@ output_dir = './data/BalancedDataset'
 os.makedirs(output_dir, exist_ok=True)
 
 class_dirs = ['Dandruff', 'Hair Greasy', 'Hair Loss', 'Psoriasis']
-
-# Count images in each class directory
 class_counts = {class_name: len(os.listdir(os.path.join(dataset_dir, class_name))) for class_name in class_dirs}
 max_count = max(class_counts.values())
 
-# Define augmentation functions
+#DATA PREPROCESSING
 def random_rotation(image):
     return image.rotate(random.uniform(-30, 30))
 
@@ -73,18 +72,14 @@ for class_name in class_dirs:
     target_dir = os.path.join(output_dir, class_name)
     os.makedirs(target_dir, exist_ok=True)
 
-    # Copy original images
     for img_name in os.listdir(class_dir):
         shutil.copy(os.path.join(class_dir, img_name), target_dir)
 
-    # Augment images
     augmented_images = augment_class(class_dir, max_count)
     for idx, augmented_image in enumerate(augmented_images):
         augmented_image.save(os.path.join(target_dir, f'aug_{idx}.jpg'))
 
 balanced_dataset_dir = output_dir
-
-# Data preprocessing
 train_datagen = ImageDataGenerator(
     rescale=1./255,
     validation_split=0.2
@@ -106,7 +101,7 @@ validation_generator = train_datagen.flow_from_directory(
     subset='validation'
 )
 
-# Model definition
+# BUILD MODEL
 mobilenet = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
 for layer in mobilenet.layers:
@@ -138,3 +133,6 @@ history = model.fit(
 # Save the model in SavedModel format
 saved_model_dir = 'saved_model/hairapy_model'
 tf.saved_model.save(model, saved_model_dir)
+
+# Convert to TensorFlow.js format
+os.system('tensorflowjs_converter --input_format=tf_saved_model --output_format=tfjs_graph_model saved_model/hairapy_model tfjs_model')
